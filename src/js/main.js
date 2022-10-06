@@ -81,11 +81,49 @@ gui.add(moonLight.position, 'x').min(-5).max(5).step(0.001)
 gui.add(moonLight.position, 'y').min(-5).max(5).step(0.001)
 gui.add(moonLight.position, 'z').min(-5).max(5).step(0.001)
 
+// FLOOR TEXTURE => GRASS
+const grassColorTexture = textureLoader.load(
+    '../static/textures/grass/color.jpg'
+)
+const grassNormalTexture = textureLoader.load(
+    '../static/textures/grass/normal.jpg'
+)
+const grassAmbientOcclusionTexture = textureLoader.load(
+    '../static/textures/grass/ambientOcclusion.jpg'
+)
+const grassRoughnessTexture = textureLoader.load(
+    '../static/textures/grass/roughness.jpg'
+)
+
+grassColorTexture.repeat.set(8, 8)
+grassNormalTexture.repeat.set(8, 8)
+grassAmbientOcclusionTexture.repeat.set(8, 8)
+grassRoughnessTexture.repeat.set(8, 8)
+
+grassColorTexture.wrapS = THREE.RepeatWrapping
+grassNormalTexture.wrapS = THREE.RepeatWrapping
+grassAmbientOcclusionTexture.wrapS = THREE.RepeatWrapping
+grassRoughnessTexture.wrapS = THREE.RepeatWrapping
+
+grassColorTexture.wrapT = THREE.RepeatWrapping
+grassNormalTexture.wrapT = THREE.RepeatWrapping
+grassAmbientOcclusionTexture.wrapT = THREE.RepeatWrapping
+grassRoughnessTexture.wrapT = THREE.RepeatWrapping
 // FLOOR
 const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshStandardMaterial({ color: '#b2ff44' })
+    new THREE.MeshStandardMaterial({
+        map: grassColorTexture,
+        aoMap: grassAmbientOcclusionTexture,
+        normalMap: grassNormalTexture,
+        roughnessMap: grassRoughnessTexture,
+    })
 )
+floor.geometry.setAttribute(
+    'uv2',
+    new THREE.Float32BufferAttribute(floor.geometry.attributes.uv.array, 2)
+)
+
 floor.rotation.x = -Math.PI * 0.5
 floor.position.y = 0
 scene.add(floor)
@@ -94,10 +132,33 @@ scene.add(floor)
 const house = new THREE.Group()
 scene.add(house)
 
+// wall textures
+const bricksColorTexture = textureLoader.load(
+    '../static/textures/bricks/color.jpg'
+)
+const bricksNormalTexture = textureLoader.load(
+    '../static/textures/bricks/normal.jpg'
+)
+const bricksAmbientOcclusionTexture = textureLoader.load(
+    '../static/textures/bricks/ambientOcclusion.jpg'
+)
+const bricksRoughnessTexture = textureLoader.load(
+    '../static/textures/bricks/roughness.jpg'
+)
+
 // WALLS
 const walls = new THREE.Mesh(
     new THREE.BoxGeometry(4, 2.5, 4),
-    new THREE.MeshStandardMaterial({ color: '#ac8e88' })
+    new THREE.MeshStandardMaterial({
+        map: bricksColorTexture,
+        aoMap: bricksAmbientOcclusionTexture,
+        normalMap: bricksNormalTexture,
+        roughnessMap: bricksRoughnessTexture,
+    })
+)
+walls.geometry.setAttribute(
+    'uv2',
+    new THREE.Float32BufferAttribute(walls.geometry.attributes.uv.array, 2)
 )
 walls.position.y = 2.5 / 2
 house.add(walls)
@@ -196,6 +257,7 @@ for (let i = 0; i < 40; i++) {
     grave.position.set(x, 0.3, z)
     grave.rotation.y = (Math.random() - 0.5) * 0.4
     grave.rotation.z = (Math.random() - 0.5) * 0.4
+    grave.castShadow = true
 
     graves.add(grave)
 }
@@ -203,6 +265,12 @@ for (let i = 0; i < 40; i++) {
 // FOG
 const fog = new THREE.Fog('#464647', 5, 18)
 scene.fog = fog
+
+// GHOSTS
+const ghost1 = new THREE.PointLight('#BFFFDE', 2, 3)
+const ghost2 = new THREE.PointLight('#1FFF3D', 2, 3)
+const ghost3 = new THREE.PointLight('#8E2CFD', 2, 3)
+scene.add(ghost1, ghost2, ghost3)
 
 // RENDERER
 const renderer = new THREE.WebGL1Renderer({
@@ -213,8 +281,61 @@ renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 renderer.setClearColor('#464647')
 
+// SHADOWS
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
+
+moonLight.castShadow = true
+doorLight.castShadow = true
+ghost1.castShadow = true
+ghost2.castShadow = true
+ghost3.castShadow = true
+walls.castShadow = true
+bush1.castShadow = true
+bush2.castShadow = true
+bush3.castShadow = true
+
+floor.receiveShadow = true
+
+// optimize shadows
+doorLight.shadow.mapSize.width = 256
+doorLight.shadow.mapSize.height = 256
+doorLight.shadow.camera.far = 7
+
+ghost1.shadow.mapSize.width = 256
+ghost1.shadow.mapSize.height = 256
+ghost1.shadow.mapSize.far = 7
+
+ghost2.shadow.mapSize.width = 256
+ghost2.shadow.mapSize.height = 256
+ghost2.shadow.mapSize.far = 7
+
+ghost3.shadow.mapSize.width = 256
+ghost3.shadow.mapSize.height = 256
+ghost3.shadow.mapSize.far = 7
+
 // Animation
+
+const clock = new THREE.Clock()
+
 const looping = () => {
+    const elapsedTime = clock.getElapsedTime()
+
+    // update ghost
+    const ghost1Angle = elapsedTime
+    ghost1.position.x = Math.cos(ghost1Angle) * 5
+    ghost1.position.z = Math.sin(ghost1Angle) * 5
+    ghost1.position.y = Math.sin(elapsedTime * 2)
+
+    ghost2.position.x = -Math.cos(elapsedTime) * 2
+    ghost2.position.z = Math.sin(elapsedTime) * 7
+    ghost2.position.y = Math.sin(elapsedTime * 1) + Math.sin(elapsedTime * 0.32)
+
+    ghost3.position.x = -Math.cos(elapsedTime) * 2
+    ghost3.position.z = -Math.sin(elapsedTime) * 7
+    ghost3.position.y =
+        -Math.sin(elapsedTime * 1) + Math.sin(elapsedTime * 0.32)
+
     controls.update()
     renderer.render(scene, camera)
     window.requestAnimationFrame(looping)
